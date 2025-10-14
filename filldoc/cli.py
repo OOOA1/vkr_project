@@ -13,6 +13,16 @@ def render_mask(mask: str, row: dict) -> str:
         return "" if val is None else str(val)
     return re.sub(r"\{\{\s*([^}]+?)\s*\}\}", _repl, mask)
 
+def _lazy_import_run_single():
+    try:
+        from .cli_single import run_single
+        return run_single
+    except Exception as e:
+        import sys
+        print("Для режима --auto нужен файл filldoc/cli_single.py с функцией run_single(...). "
+              "Сейчас он не найден.\nДетали:", e, file=sys.stderr)
+        sys.exit(1)
+
 def _process_detect(path: str):
     try:
         src = convert_doc_to_docx(path)
@@ -96,7 +106,7 @@ def _process_auto(path: str, excel: str, row: int | None, outdir: str, dry_run: 
         out_path = os.path.join(outdir, out_name)
         log = []
         d = Document(src)
-        apply_mapping_to_doc(d, r, spec.mapping, spec.settings, log, dry_run=dry_run)
+        apply_mapping_to_doc(d, r, spec.mapping, spec.settings, dry_run=dry_run)
         if dry_run:
             print(f"[{spec.id}] Предпросмотр '{out_name}':")
             for line in log:
