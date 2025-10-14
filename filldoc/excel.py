@@ -63,3 +63,24 @@ def load_excel(xlsx_path: str) -> ExcelConfig:
                 settings[k] = val
 
     return ExcelConfig(data_rows, mapping_rows, settings)
+
+def _norm(s):
+    return re.sub(r"\s+", " ", ("" if s is None else str(s))).strip()
+
+def load_master_data(path: str):
+    """
+    Читает ТОЛЬКО лист 'data' из master.xlsx.
+    Возвращает список словарей: [{Колонка: значение, ...}, ...]
+    Пустые строки пропускаются.
+    """
+    wb = load_workbook(path, data_only=True)
+    if "data" not in wb.sheetnames:
+        raise RuntimeError("В Excel нет листа 'data'.")
+
+    ws = wb["data"]
+    headers = [_norm(c.value) for c in ws[1]]
+    rows = []
+    for r in ws.iter_rows(min_row=2, values_only=True):
+        if any(v is not None and str(v).strip() != "" for v in r):
+            rows.append({h: v for h, v in zip(headers, r)})
+    return rows

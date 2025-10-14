@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional
 import re
 from dateutil import parser as dateparser
 import datetime as _dt
+import os, shutil, subprocess, tempfile, pathlib, sys
 
 # --- утилиты текста/якорей ---
 
@@ -91,3 +92,89 @@ def apply_length_policy(src: str, replacement: str, policy: str) -> str:
     # underline_and_keep_line
     if len(replacement) >= len(src):
         re
+
+def _which(*names):
+    for n in names:
+        if not n: 
+            continue
+        p = shutil.which(n)
+        if p:
+            return p
+    return None
+
+def normalize(s: str) -> str:
+    if s is None: return ""
+    return re.sub(r"\s+", " ", str(s)).strip()
+
+def find_soffice() -> str | None:
+    # приоритет: переменные окружения → типовые пути → PATH
+    env = os.environ.get("SOFFICE_PATH") or os.environ.get("LIBREOFFICE_PATH")
+    candidates = [
+        env,
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+        "/usr/bin/soffice",
+        "/usr/lib/libreoffice/program/soffice",
+        "/snap/bin/libreoffice",
+    ]
+    for c in candidates:
+        if c and os.path.isfile(c):
+            return c
+    return _which("soffice") or _which("libreoffice")
+
+def convert_doc_to_docx(doc_path: str, outdir: str | None = None) -> str:
+    """
+    Возвращает путь к .docx. Если вход уже .docx — возвращает исходный.
+    Сначала пробуем LibreOffice, на Windows без него — MS Word COM.
+    """
+    if not doc_path.lower().endswith(".doc"):
+        return doc_path
+
+    src = os.path.abspath(doc_path)  # <-- ВАЖНО: абсолютный путь
+    if not os.path.exists(src):
+        raise FileNotFoundError(f"Файл не найден: {src}")
+
+    # 1) LibreOffice (если установлен)
+    soffice = find_soffice()
+    if soffice:
+        outdir = outdir or tempfile.mkdtemp(prefix="filldoc_")
+        cmd = [soffice, "--headless", "--nologo", "--convert-to", "docx", "--outdir", outdir, src]
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if proc.returncode != 0:
+            raise RuntimeError(f"LibreOffice: ошибка конвертации .doc→.docx:\n{proc.stderr or proc.stdout}")
+        out = os.path.join(outdir, pathlib.Path(src).with_suffix(".docx").name)
+        if not os.path.exists(out):
+            # запасной поиск (иногда имя/регистры меняются)
+            stem = pathlib.Path(src).stem
+            for p in pathlib.Path(outdir).glob(f"{stem}*.docx"):
+                out = str(p); break
+        if not os.path.exists(out):
+            raise RuntimeError("LibreOffice отработал, но .docx не найден.")
+        return out
+
+    # 2) Windows COM (MS Word)
+    if os.name == "nt":
+        try:
+            import win32com.client  # pip install pywin32
+            wdFormatXMLDocument = 16
+            outdir = outdir or tempfile.mkdtemp(prefix="filldoc_")
+            out_path = os.path.join(outdir, pathlib.Path(src).with_suffix(".docx").name)
+
+            word = win32com.client.gencache.EnsureDispatch("Word.Application")
+            word.Visible = False
+            try:
+                # Нормализованный абсолютный путь
+                doc = word.Documents.Open(os.path.normpath(src))
+                doc.SaveAs(os.path.normpath(out_path), FileFormat=wdFormatXMLDocument)
+                doc.Close(False)
+            finally:
+                word.Quit()
+            return out_path
+        except Exception as e:
+            raise RuntimeError(
+                "Нет LibreOffice и не удалось конвертировать через MS Word COM. "
+                "Поставьте LibreOffice (soffice) или установите MS Word + pywin32."
+            ) from e
+
+    raise RuntimeError("LibreOffice (soffice) не найден. Установите LibreOffice или сконвертируйте .doc вручную.")
+    
