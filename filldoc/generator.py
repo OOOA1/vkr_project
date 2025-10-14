@@ -19,10 +19,10 @@ def apply_mapping_to_doc(doc: Document, cfg_row: Dict[str, Any], map_rows, setti
 
     for i, rule in enumerate(map_rows, start=1):
         field = (rule.get("Field") or "").strip()
-        if field not in cfg_row:
-            log.append(f"[{i}] {method} (Field={field}): НЕТ ТАКОЙ КОЛОНКИ В data")
-            continue
         method = (rule.get("Method") or "").strip()
+        if field not in cfg_row:
+            log.append(f"[{i}] {method or 'UNKNOWN'} (Field={field}): НЕТ ТАКОЙ КОЛОНКИ В data")
+            continue
         value_raw = cfg_row.get(field)
         # Покажем, какие поля есть и их значения (в dry-run)
         if dry_run:

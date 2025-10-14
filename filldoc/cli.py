@@ -143,7 +143,6 @@ def main():
             _process_auto(args.doc, args.excel, args.row, args.out, args.dry_run)
         return
 
-    from .cli_single import run_single
     run_single(args)
 
 if __name__ == "__main__":
