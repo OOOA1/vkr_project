@@ -61,3 +61,15 @@ def replace_between_in_paragraph(p: Paragraph, left: str, right: str | None, val
             return f"{L} {value}"
         new_text = pat.sub(_repl, text, count=1)
     set_paragraph_text_keep_style(p, new_text)
+
+def replace_after_slash_in_paragraph(p: Paragraph, value: str):
+    """Заменить всё после первого '/' на ' И.О. Фамилия' с аккуратными пробелами."""
+    src = p.text
+    if "/" not in src:
+        # если вдруг слэша нет — просто добавим " / value" в конец
+        set_paragraph_text_keep_style(p, (src.rstrip() + " / " + value).rstrip())
+        return
+    before, after = src.split("/", 1)
+    # нормализуем пробелы вокруг слэша: "<before> / <value>"
+    new_text = before.rstrip() + " / " + value
+    set_paragraph_text_keep_style(p, new_text)

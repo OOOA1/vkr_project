@@ -42,6 +42,36 @@ class Locator:
                 if c == (occur or 1):
                     return p
         return None
+    
+    def anchor_line_find(self, anchor: str, occur: int = 1):
+        """
+        Найти абзац по якорю.
+        - Одно слово -> поиск по границам слова (исключаем 'Студент' vs 'студента').
+        - Фраза (пробелы/скобки) -> регистронезависимый поиск по нормализованному тексту.
+        """
+        token = normalize(anchor)
+        if not token:
+            return None
+
+        is_single_word = len(re.findall(r"\w+", token, flags=re.UNICODE)) == 1
+        c = 0
+
+        if is_single_word:
+            pat = re.compile(rf"\b{re.escape(token)}\b", flags=re.IGNORECASE)
+            for p in self.iter_paragraphs():
+                if pat.search(normalize(p.text)):
+                    c += 1
+                    if c == (occur or 1):
+                        return p
+        else:
+            needle = normalize(token).lower()
+            for p in self.iter_paragraphs():
+                hay = normalize(p.text).lower()
+                if needle in hay:
+                    c += 1
+                    if c == (occur or 1):
+                        return p
+        return None
 
     # ---------- helpers ----------
     def iter_paragraphs(self) -> List[Paragraph]:

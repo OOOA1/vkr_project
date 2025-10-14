@@ -6,7 +6,7 @@ from .excel import load_excel
 from .locator import Locator
 from .renderer import set_paragraph_text_keep_style, replace_underscore_segment_in_paragraph, write_to_cell, replace_between_in_paragraph
 from .utils import transform_value, apply_length_policy, normalize
-from .renderer import set_paragraph_text_keep_style, replace_underscore_segment_in_paragraph, write_to_cell, replace_between_in_paragraph, replace_after_token_in_paragraph
+from .renderer import set_paragraph_text_keep_style, replace_underscore_segment_in_paragraph, write_to_cell, replace_between_in_paragraph, replace_after_token_in_paragraph, replace_after_slash_in_paragraph
 
 def apply_mapping_to_doc(doc: Document, cfg_row: Dict[str, Any], map_rows, settings, dry_run: bool) -> list[str]:
     """
@@ -62,6 +62,16 @@ def apply_mapping_to_doc(doc: Document, cfg_row: Dict[str, Any], map_rows, setti
             log.append(f"[{i}] anchor_after_colon '{anchor}': -> '{value}'")
             if not dry_run:
                 set_paragraph_text_keep_style(p, new_text)
+
+        elif method == "anchor_after_slash":
+            anchor = str(rule.get("Anchor") or "")
+            p = locator.anchor_line_find(anchor, occur=occur)
+            if not p:
+                log.append(f"[{i}] anchor_after_slash '{anchor}' (#{occur}): НЕ НАЙДЕНО (Field={field})")
+                continue
+            log.append(f"[{i}] anchor_after_slash '{anchor}' -> '{value}'")
+            if not dry_run:
+                replace_after_slash_in_paragraph(p, value)
 
         elif method == "anchor_after_token":
             anchor = str(rule.get("Anchor") or "")
