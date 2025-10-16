@@ -74,6 +74,7 @@ DN = TemplateSpec(
         "маска_имени_файла": "{{Группа}}_{{ФИО}}_дневник.docx",
         "минимальная_длина_линии": 3,
         "политика_длины_значения": "underline_and_keep_line",
+        "filename_globs": ["*дневник*.docx"],
     },
     mapping=[
         # верхняя часть
@@ -234,11 +235,21 @@ DOPSVE = TemplateSpec(
         negative=["каникул", "отказываюсь от предоставления", "последипломного отпуска"],
         layout={"min_tables": 1, "min_underscores": 3},
         threshold=20,
-        must_all=["дополнительные сведения", "приложения к диплому"],  # ← добавили
+        must_all=["дополнительные сведения"],  # ← добавили
+        any_of=[["приложения к диплому", "к диплому"]],
     ),
     settings={"маска_имени_файла": "{{Группа}}_{{ФИО}}_доп_сведения.docx",
-              "минимальная_длина_линии": 3, "политика_длины_значения": "underline_and_keep_line"},
-    mapping=[],
+              "минимальная_длина_линии": 3, "политика_длины_значения": "underline_and_keep_line",
+              "filename_globs": ["*доп*свед*.docx", "*доп_сведения*.docx", "*доп сведения*.docx"],},
+    mapping=[
+        {"Field": "ФИО", "Method": "replace", "Anchor": "от обучающегося", "Label": "курса", "Occur": 1},
+        {"Field": "Курс", "Method": "between_words", "Anchor": "курса", "Label": "формы обучения", "Occur": 1},
+        {"Field": "Группа", "Method": "between_words", "Anchor": "группы", "Label": "курса", "Occur": 1},
+        {"Field": "Направление", "Method": "between_words", "Anchor": "Направление подготовки", "Label": "профиль", "Occur": 1},
+        {"Field": "Профиль", "Method": "between_words", "Anchor": "профиль", "Label": "приложение", "Occur": 1},
+        {"Field": "ФИО", "Method": "anchor_prev", "Anchor": "(Ф.И.О. обучающегося)", "Occur": 1, "Segment": -1},
+        {"Field": "ФИО", "Method": "anchor_after_slash", "Anchor": "(расшифровка подписи)", "Occur": 1, "Transform": "FIO_INITIALS_SURNAME"},
+    ],
 )
 
 AP2 = TemplateSpec(
@@ -254,8 +265,7 @@ AP2 = TemplateSpec(
     settings={"маска_имени_файла": "{{Группа}}_{{ФИО}}_АП.docx",
               "минимальная_длина_линии": 3, "политика_длины_значения": "underline_and_keep_line"},
     mapping=[
-        {"Field":"ФИО","Method":"between_words","Anchor":"От обучающегося","Label":"EOL","Occur":1},
-        # при надобности: подписи/даты добавим позже
+
     ],
 )
 
@@ -412,16 +422,55 @@ DOG_NEW = TemplateSpec(
     id="DOG_NEW",
     human_name="Договор (новая форма)",
     detect=DetectSpec(
-        required=["договор"],
-        optional=["предмет договора", "стороны", "исполнитель", "заказчик", "реквизиты", "подписи"],
-        negative=["дневник", "задание", "титул", "график", "отчет"],
-        layout={},
-        threshold=7,              # ← было 8
-        must_all=["договор"],
+        # Дадим детектору «жирные» маркеры, которые реально есть в твоём файле договора
+        must_exact_lines=["ДОГОВОР № ____________"],   # заголовок
+        required=[
+            "договор",                                 # на всякий случай, нечувствительно к регистру
+            "Полное наименование организации:",        # в блоках «Университет» и «Профильная организация»
+            "ИНН",                                     # реквизиты
+            "Адреса, реквизиты и подписи Сторон",      # раздел 5
+        ],
+        optional=[
+            "Приложение 1 к договору", "Приложение 2 к договору",
+            "Профильная организация", "Университет",
+            "Проректор по развитию",
+        ],
+        negative=["дневник", "задание", "титул", "график", "отчет", "отчёт"],
+        layout={"min_underscores": 3},
+        threshold=4,        # снизили порог, чтобы уверенно срабатывало
+        must_all=["договор"],   # закрепили ключевое слово
     ),
-    settings={"маска_имени_файла": "договор_новый_{{ФИО}}.docx",
-              "минимальная_длина_линии": 3, "политика_длины_значения": "underline_and_keep_line"},
-    mapping=[],
+    settings={
+        "маска_имени_файла": "договор_новый_{{ФИО}}.docx",
+        "минимальная_длина_линии": 3,
+        "политика_длины_значения": "underline_and_keep_line",
+        "filename_globs": ["*договор*тз*.docx", "*договор новый*.docx"],
+    },
+    mapping=[
+        # ПРЕАМБУЛА — заменить только "1. Название предприятия" (без захода на формат рядом)
+        {"Field": "БазаПрактики", "Method": "between_words", "Anchor": "1.", "Label": "именуемая", "Occur": 1},
+
+        {"Field": "РукПрофОрг", "Method": "between_words", "Anchor": "2.", "Label": ", действующего(ей)", "Occur": 1},
+
+        {"Field": "ДатаСозданияОрг", "Method": "between_words", "Anchor": "3.", "Label": "г.", "Occur": 1},
+
+        {"Field": "БазаПрактики", "Method": "between_words",
+        "Anchor": "уставом ", "Label": "EOL", "Occur": 1},
+
+        {"Field": "БазаПрактики", "Method": "between_words",
+        "Anchor": "уставом\u00A0", "Label": "EOL", "Occur": 1},   # NBSP после "уставом"
+
+        {"Field": "БазаПрактики", "Method": "between_words",
+        "Anchor": "уставом\t", "Label": "EOL", "Occur": 1},      # таб после "уставом"
+
+        {"Field": "БазаПрактики", "Method": "between_words", "Anchor": "1.", "Label": "именуемая", "Occur": 1},
+
+        {"Field": "БазаПрактики", "Method": "between_words", "Anchor": "1.", "Label": "EOL", "Occur": 2},
+
+        {"Field":"БазаПрактики","Method":"between_words","Anchor":", уставом 1.","Label":"EOL","Occur":1},
+        {"Field":"БазаПрактики","Method":"between_words","Anchor":", уставом\u00A01.","Label":"EOL","Occur":1},  # NBSP
+        {"Field":"БазаПрактики","Method":"between_words","Anchor":", уставом\t1.","Label":"EOL","Occur":1},     # таб
+    ]
 )
 
 # Договор (старый)
