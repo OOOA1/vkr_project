@@ -8,7 +8,7 @@ from docxtpl import DocxTemplate
 # ---------- Настройки ----------
 EXCEL_PATH = "main.xlsx"
 SHEET_NAME = 0  # или имя листа
-OUT_DIR = Path(r"C:\vkr_project-main\output")
+OUT_DIR = Path(r"C:\Users\artem\Desktop\vkr_project-main\output")
 
 # Описываем каждый шаблон:
 #   path   — путь к .docx шаблону
@@ -84,6 +84,7 @@ TEMPLATES = [
     },
 
             {
+                # ДОП СВЕДЕНИЯ
         "path": "input/Доп.сведения.docx",
         "out":  "Доп.сведения_{ФИО}_{Группа}.docx",
         "fields": {
@@ -108,6 +109,30 @@ TEMPLATES = [
             "kurs": "Курс",
             "studyForm": "формыОбучения",
             "naprPodg": "направлениеПодготовки",
+            "profile": "ПрофильОбучения",
+            "SvedOFormStudy": "СведенияОФормеОбучения",
+            "SvedOProhObuch": "СведенияОПрохЧастиОбрПрог",
+            "SvedOProhUskObuch": "СведОПрохУскорОбуч",
+            "initialStudent": "РасшифровкаСтудента",
+        }
+    },
+
+    # задание на ВКР 1
+                {
+                # ДОП СВЕДЕНИЯ
+        "path": "input/Задание на ВКР - 1.docx",
+        "out":  "Задание_на_ВКР - 1_{ФИО}_{Группа}.docx",
+        "fields": {
+            "naprPodg": "направлениеПодготовки",
+            "kurs": "Курс",
+            "group": "Группа",
+            "studyForm": "формыОбучения",
+            "stepenNauchRuk": "СтепеньНаучРук",
+            "ZvanieNauchRuk": "ЗваниеНаучРук",
+            "fio": "ФИО",
+            "fioDP": "ФИОДП",
+            "initialRukVRK": "ИницРукВКР",
+            "srokSdachiVRK": "СрокСдачиВКР"
         }
     },
 ]
